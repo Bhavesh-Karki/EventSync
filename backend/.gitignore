@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+client/node_modules/
+
+# Data files (generated at runtime)
+data/
+logs/
+
+# Environment variables
+.env
+.env.local
+
+# Production build
+client/build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+
+# Misc
+.cache/
+
+Event-volunteer-.zip
+MONGODB_SETUP.md
