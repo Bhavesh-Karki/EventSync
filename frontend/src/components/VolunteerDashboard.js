@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api';
 
 function VolunteerDashboard({ volunteerId, onLogout }) {
@@ -7,24 +7,38 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    fetchVolunteerData();
-  }, [volunteerId]);
+  const showMessage = useCallback((msg, type = 'success') => {
+    setMessage({ text: msg, type });
+    setTimeout(() => setMessage(''), 3000);
+  }, []);
 
-  const fetchVolunteerData = async () => {
+  const fetchVolunteerData = useCallback(async () => {
+    if (!volunteerId) {
+      setVolunteer(null);
+      setAssignments([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const [volunteerRes, assignmentsRes] = await Promise.all([
+      const [volunteerRes, assignmentsRes] = await Promise.allSettled([
         api.get(`/api/volunteers/${volunteerId}`),
         api.get(`/api/assignments/volunteer/${volunteerId}`)
       ]);
 
-      if (volunteerRes.data.success) {
-        setVolunteer(volunteerRes.data.data);
+      if (volunteerRes.status === 'fulfilled' && volunteerRes.value.data.success) {
+        setVolunteer(volunteerRes.value.data.data);
+      } else {
+        setVolunteer(null);
+        showMessage('Volunteer profile could not be loaded', 'error');
       }
 
-      if (assignmentsRes.data.success) {
-        setAssignments(assignmentsRes.data.data);
+      if (assignmentsRes.status === 'fulfilled' && assignmentsRes.value.data.success) {
+        setAssignments(Array.isArray(assignmentsRes.value.data.data) ? assignmentsRes.value.data.data : []);
+      } else {
+        setAssignments([]);
+        showMessage('Assignments could not be loaded', 'error');
       }
     } catch (error) {
       console.error('Error fetching volunteer data:', error);
@@ -32,12 +46,11 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showMessage, volunteerId]);
 
-  const showMessage = (msg, type = 'success') => {
-    setMessage({ text: msg, type });
-    setTimeout(() => setMessage(''), 3000);
-  };
+  useEffect(() => {
+    fetchVolunteerData();
+  }, [fetchVolunteerData]);
 
   const handleUpdateStatus = async (assignmentId, newStatus) => {
     try {
@@ -78,6 +91,9 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
   const pendingAssignments = assignments.filter(a => a.status === 'pending');
   const inProgressAssignments = assignments.filter(a => a.status === 'in-progress');
   const completedAssignments = assignments.filter(a => a.status === 'completed');
+  const getAssignmentId = (assignment) => assignment._id || assignment.id;
+  const getAssignmentEventName = (assignment) => assignment.eventName || assignment.event?.name || 'Event unavailable';
+  const volunteerSkills = Array.isArray(volunteer.skills) ? volunteer.skills : [];
 
   return (
     <div className="dashboard">
@@ -150,8 +166,8 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
               <div className="profile-detail">
                 <p><strong><i className="fas fa-star"></i> My Skills:</strong></p>
                 <div className="skills-list">
-                  {volunteer.skills.length > 0 ? (
-                    volunteer.skills.map((skill, index) => (
+                  {volunteerSkills.length > 0 ? (
+                    volunteerSkills.map((skill, index) => (
                       <span key={index} className="skill-badge">{skill}</span>
                     ))
                   ) : (
@@ -185,9 +201,9 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
               </thead>
               <tbody>
                 {assignments.map(assignment => (
-                  <tr key={assignment.id}>
+                  <tr key={getAssignmentId(assignment)}>
                     <td>
-                      <strong>{assignment.eventName}</strong>
+                      <strong>{getAssignmentEventName(assignment)}</strong>
                       {assignment.notes && (
                         <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
                           Notes: {assignment.notes}
@@ -206,7 +222,7 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
                         {assignment.status === 'pending' && (
                           <button
                             className="btn btn-primary"
-                            onClick={() => handleUpdateStatus(assignment.id || assignment._id, 'in-progress')}
+                            onClick={() => handleUpdateStatus(getAssignmentId(assignment), 'in-progress')}
                           >
                             <i className="fas fa-play"></i> Start Task
                           </button>
@@ -214,7 +230,7 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
                         {assignment.status === 'in-progress' && (
                           <button
                             className="btn btn-success"
-                            onClick={() => handleUpdateStatus(assignment.id || assignment._id, 'completed')}
+                            onClick={() => handleUpdateStatus(getAssignmentId(assignment), 'completed')}
                           >
                             <i className="fas fa-check"></i> Mark Complete
                           </button>
@@ -226,7 +242,7 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
                             </span>
                             <button
                               className="btn btn-warning"
-                              onClick={() => handleUpdateStatus(assignment.id || assignment._id, 'in-progress')}
+                              onClick={() => handleUpdateStatus(getAssignmentId(assignment), 'in-progress')}
                               title="Undo completion"
                             >
                               <i className="fas fa-undo"></i> Incomplete
@@ -254,8 +270,8 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
             <p>You have {pendingAssignments.length} pending task(s) that need attention.</p>
             <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
               {pendingAssignments.map(assignment => (
-                <li key={assignment.id} style={{ marginBottom: '5px' }}>
-                  <strong>{assignment.eventName}</strong> - {assignment.duty}
+                <li key={getAssignmentId(assignment)} style={{ marginBottom: '5px' }}>
+                  <strong>{getAssignmentEventName(assignment)}</strong> - {assignment.duty}
                 </li>
               ))}
             </ul>

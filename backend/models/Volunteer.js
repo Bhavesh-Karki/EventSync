@@ -118,7 +118,7 @@ const volunteerSchema = new mongoose.Schema(
 
 // Number of events assigned
 volunteerSchema.virtual('eventsCount').get(function() {
-    return this.eventsAssigned.length;
+    return Array.isArray(this.eventsAssigned) ? this.eventsAssigned.length : 0;
 });
 
 // Full name with email
@@ -139,6 +139,10 @@ volunteerSchema.virtual('isExperienced').get(function() {
  * Add event to volunteer's assignments
  */
 volunteerSchema.methods.assignEvent = function(eventId) {
+    if (!Array.isArray(this.eventsAssigned)) {
+        this.eventsAssigned = [];
+    }
+
     if (!this.eventsAssigned.includes(eventId)) {
         this.eventsAssigned.push(eventId);
         return this.save();
@@ -150,7 +154,7 @@ volunteerSchema.methods.assignEvent = function(eventId) {
  * Remove event from volunteer's assignments
  */
 volunteerSchema.methods.unassignEvent = function(eventId) {
-    this.eventsAssigned = this.eventsAssigned.filter(
+    this.eventsAssigned = (this.eventsAssigned || []).filter(
         id => id.toString() !== eventId.toString()
     );
     return this.save();
@@ -237,9 +241,8 @@ volunteerSchema.statics.findTopVolunteers = function(limit = 10) {
 // ========================================
 
 // Pre-save middleware
-volunteerSchema.pre('save', function(next) {
+volunteerSchema.pre('save', function() {
     console.log(`Saving volunteer: ${this.name}`);
-    next();
 });
 
 // Post-save middleware

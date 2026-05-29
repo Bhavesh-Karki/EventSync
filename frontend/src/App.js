@@ -8,17 +8,25 @@ import VolunteerDashboard from './components/VolunteerDashboard';
 import Login from './components/Login';
 
 function App() {
-  const [userRole, setUserRole] = React.useState(null);
-  const [userId, setUserId] = React.useState(null);
+  const [userRole, setUserRole] = React.useState(() => localStorage.getItem('eventSyncRole'));
+  const [userId, setUserId] = React.useState(() => localStorage.getItem('eventSyncUserId'));
 
   const handleLogin = (role, id) => {
     setUserRole(role);
     setUserId(id);
+    localStorage.setItem('eventSyncRole', role);
+    if (id) {
+      localStorage.setItem('eventSyncUserId', id);
+    } else {
+      localStorage.removeItem('eventSyncUserId');
+    }
   };
 
   const handleLogout = () => {
     setUserRole(null);
     setUserId(null);
+    localStorage.removeItem('eventSyncRole');
+    localStorage.removeItem('eventSyncUserId');
   };
 
   return (
@@ -29,7 +37,9 @@ function App() {
             path="/" 
             element={
               userRole ? (
-                userRole === 'admin' ? <Navigate to="/admin" /> : <Navigate to="/volunteer" />
+                userRole === 'admin' ? <Navigate to="/admin" /> : (
+                  userId ? <Navigate to="/volunteer" /> : <Login onLogin={handleLogin} />
+                )
               ) : (
                 <Login onLogin={handleLogin} />
               )
@@ -48,7 +58,7 @@ function App() {
           <Route 
             path="/volunteer" 
             element={
-              userRole === 'volunteer' ? (
+              userRole === 'volunteer' && userId ? (
                 <VolunteerDashboard volunteerId={userId} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/" />

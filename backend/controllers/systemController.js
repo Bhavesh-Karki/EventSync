@@ -10,12 +10,14 @@
 // Importing custom modules
 const systemInfo = require('../utils/systemInfo');
 const fileOps = require('../utils/fileOperations');
-
-// Importing services using storage configuration
-const { eventService, volunteerService, assignmentService } = require('../config/storage');
+const { createPdfBuffer } = require('../utils/pdfReport');
 
 // Using Path module
 const path = require('path');
+const fs = require('fs');
+const Event = require('../models/Event');
+const Volunteer = require('../models/Volunteer');
+const Assignment = require('../models/Assignment');
 
 // ========================================
 // GET SYSTEM INFORMATION
@@ -166,13 +168,24 @@ async function getLogs(req, res) {
  */
 async function generateVolunteerReport(req, res) {
     try {
-        // Gather data from all services
-        const events = await eventService.getAllEvents();
-        const volunteers = await volunteerService.getAllVolunteers();
-        const assignments = await assignmentService.getAllAssignments();
-        const stats = await assignmentService.getAssignmentStats();
+        const [events, volunteers, assignments] = await Promise.all([
+            Event.find().sort({ date: 1 }).lean({ virtuals: true }),
+            Volunteer.find().sort({ name: 1 }).lean({ virtuals: true }),
+            Assignment.find()
+                .populate('event', 'name date location status')
+                .populate('volunteer', 'name email phone status')
+                .sort({ createdAt: -1 })
+                .lean({ virtuals: true })
+        ]);
+
+        const stats = {
+            total: assignments.length,
+            pending: assignments.filter(a => a.status === 'pending').length,
+            inProgress: assignments.filter(a => a.status === 'in-progress').length,
+            completed: assignments.filter(a => a.status === 'completed').length,
+            cancelled: assignments.filter(a => a.status === 'cancelled').length
+        };
         
-        // Create comprehensive report
         const report = {
             reportType: 'Volunteer Coordination Report',
             generatedAt: new Date().toISOString(),
@@ -186,25 +199,25 @@ async function generateVolunteerReport(req, res) {
                 activeVolunteers: volunteers.filter(v => v.status === 'active').length
             },
             events: events.map(e => ({
-                id: e.id,
+                id: String(e._id),
                 name: e.name,
                 date: e.date,
                 location: e.location,
                 status: e.status,
-                volunteersAssigned: e.volunteers.length
+                volunteersAssigned: (e.volunteers || []).length
             })),
             volunteers: volunteers.map(v => ({
-                id: v.id,
+                id: String(v._id),
                 name: v.name,
                 email: v.email,
-                skills: v.skills,
-                eventsCount: v.eventsAssigned.length,
+                skills: v.skills || [],
+                eventsCount: (v.eventsAssigned || []).length,
                 status: v.status
             })),
             assignments: assignments.map(a => ({
-                id: a.id,
-                eventName: a.eventName,
-                volunteerName: a.volunteerName,
+                id: String(a._id),
+                eventName: a.event?.name || 'Deleted event',
+                volunteerName: a.volunteer?.name || 'Deleted volunteer',
                 duty: a.duty,
                 status: a.status,
                 schedule: a.schedule
@@ -212,25 +225,47 @@ async function generateVolunteerReport(req, res) {
             systemInfo: systemInfo.getSystemInfo()
         };
         
-        // Generate filename with timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `volunteer-report-${timestamp}.json`;
-        
-        // Using file operations to write report (demonstrates fs.writeFile)
-        await fileOps.writeFileAsync(filename, report);
-        
-        // Log the report generation
+        const filename = `volunteer-report-${timestamp}.pdf`;
+        const reportLines = [
+            report.reportType,
+            `Generated at: ${new Date(report.generatedAt).toLocaleString()}`,
+            '',
+            'Summary',
+            `Total events: ${report.summary.totalEvents}`,
+            `Total volunteers: ${report.summary.totalVolunteers}`,
+            `Active volunteers: ${report.summary.activeVolunteers}`,
+            `Total assignments: ${report.summary.totalAssignments}`,
+            `Pending assignments: ${report.summary.pendingAssignments}`,
+            `Completed assignments: ${report.summary.completedAssignments}`,
+            '',
+            'Events',
+            ...report.events.flatMap((event) => [
+                `${event.name} | ${new Date(event.date).toLocaleDateString()} | ${event.location} | ${event.status}`,
+                `Assigned volunteers: ${event.volunteersAssigned}`
+            ]),
+            '',
+            'Volunteers',
+            ...report.volunteers.map((volunteer) =>
+                `${volunteer.name} | ${volunteer.email} | ${volunteer.status} | Skills: ${volunteer.skills.join(', ') || 'None'}`
+            ),
+            '',
+            'Assignments',
+            ...report.assignments.map((assignment) =>
+                `${assignment.eventName} -> ${assignment.volunteerName} | ${assignment.duty} | ${assignment.schedule} | ${assignment.status}`
+            )
+        ];
+
+        const pdfBuffer = createPdfBuffer(reportLines);
+        const filePath = path.join(fileOps.DATA_DIR, filename);
+
+        await fs.promises.writeFile(filePath, pdfBuffer);
         await fileOps.appendLog(`Volunteer report generated: ${filename}`);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Volunteer report generated and saved successfully',
-            data: {
-                filename,
-                filePath: path.join(fileOps.DATA_DIR, filename),
-                reportSummary: report.summary
-            }
-        });
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('X-Report-Filename', filename);
+        res.status(200).send(pdfBuffer);
     } catch (error) {
         console.error('Error in generateVolunteerReport controller:', error.message);
         

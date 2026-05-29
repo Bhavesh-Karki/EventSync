@@ -301,7 +301,7 @@ assignmentSchema.statics.checkConflicts = async function(volunteerId, eventId) {
 // ========================================
 
 // Pre-save middleware - validate no duplicate assignments
-assignmentSchema.pre('save', async function(next) {
+assignmentSchema.pre('save', async function() {
     if (this.isNew) {
         const existing = await this.constructor.findOne({
             event: this.event,
@@ -314,7 +314,6 @@ assignmentSchema.pre('save', async function(next) {
             throw new Error('This assignment already exists');
         }
     }
-    next();
 });
 
 // Post-save middleware

@@ -193,11 +193,6 @@ function AdminDashboard({ onLogout }) {
     e.preventDefault();
     try {
       if (editAssignmentId) {
-        const response = await api.patch(`/api/assignments/${editAssignmentId}/status`, { status: assignmentForm.status }); // Simplified for now, but usually assignments have more fields
-        // Since the user might want to edit duty/schedule, let's assume they want full update.
-        // Wait, I only added patch status in controller. Let's check if I have full update.
-        // I'll add full update to assignment controller in a moment. 
-
         const updateRes = await api.put(`/api/assignments/${editAssignmentId}`, assignmentForm);
         if (updateRes.data.success) {
           showMessage('Assignment updated successfully!');
@@ -268,13 +263,29 @@ function AdminDashboard({ onLogout }) {
 
   const handleGenerateReport = async () => {
     try {
-      const response = await api.post('/api/reports/volunteer-report');
-      if (response.data.success) {
-        showMessage('Report generated successfully!');
-        alert(`Report saved to: ${response.data.data.filename}`);
+      const response = await api.post('/api/reports/volunteer-report', {}, { responseType: 'blob' });
+      const contentType = response.headers['content-type'] || '';
+
+      if (!contentType.includes('application/pdf')) {
+        const errorText = await response.data.text();
+        throw new Error(errorText || 'Report generation failed');
       }
+
+      const filename =
+        response.headers['x-report-filename'] ||
+        response.headers['content-disposition']?.match(/filename="?([^"]+)"?/)?.[1] ||
+        `volunteer-report-${Date.now()}.pdf`;
+      const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      showMessage('PDF report downloaded successfully!');
     } catch (error) {
-      showMessage('Error generating report', 'error');
+      showMessage(error.message || 'Error generating report', 'error');
     }
   };
 

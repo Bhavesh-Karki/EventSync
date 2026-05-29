@@ -109,7 +109,7 @@ const eventSchema = new mongoose.Schema(
  * Returns the number of volunteers assigned to this event
  */
 eventSchema.virtual('volunteersCount').get(function() {
-    return this.volunteers.length;
+    return Array.isArray(this.volunteers) ? this.volunteers.length : 0;
 });
 
 /**
@@ -141,6 +141,10 @@ eventSchema.virtual('daysUntilEvent').get(function() {
  * @param {string} volunteerId - Volunteer ObjectId
  */
 eventSchema.methods.addVolunteer = function(volunteerId) {
+    if (!Array.isArray(this.volunteers)) {
+        this.volunteers = [];
+    }
+
     if (!this.volunteers.includes(volunteerId)) {
         this.volunteers.push(volunteerId);
         return this.save();
@@ -153,7 +157,7 @@ eventSchema.methods.addVolunteer = function(volunteerId) {
  * @param {string} volunteerId - Volunteer ObjectId
  */
 eventSchema.methods.removeVolunteer = function(volunteerId) {
-    this.volunteers = this.volunteers.filter(
+    this.volunteers = (this.volunteers || []).filter(
         id => id.toString() !== volunteerId.toString()
     );
     return this.save();
@@ -164,7 +168,7 @@ eventSchema.methods.removeVolunteer = function(volunteerId) {
  * @returns {boolean}
  */
 eventSchema.methods.isFull = function() {
-    return this.volunteers.length >= this.capacity;
+    return (this.volunteers || []).length >= this.capacity;
 };
 
 // ========================================
@@ -212,9 +216,8 @@ eventSchema.statics.getStatistics = async function() {
 // ========================================
 
 // Pre-save middleware - runs before saving
-eventSchema.pre('save', function(next) {
+eventSchema.pre('save', function() {
     console.log(`Saving event: ${this.name}`);
-    next();
 });
 
 // Post-save middleware - runs after saving
@@ -222,10 +225,9 @@ eventSchema.post('save', function(doc) {
     console.log(`Event saved: ${doc.name} (ID: ${doc._id})`);
 });
 
-// Pre-remove middleware
-eventSchema.pre('remove', function(next) {
+// Pre-delete middleware
+eventSchema.pre('deleteOne', { document: true, query: false }, function() {
     console.log(`Removing event: ${this.name}`);
-    next();
 });
 
 // ========================================
