@@ -1,8 +1,3 @@
-// ========================================
-// ROUTES - routes/systemRoutes.js
-// ========================================
-// Demonstrates routes for system information
-// ========================================
 
 const express = require('express');
 const router = express.Router();
@@ -31,7 +26,7 @@ router.get('/logs', systemController.getLogs);
 router.get('/files', systemController.listDataFiles);
 
 // GET database health status
-// Check MongoDB connection and health
+// Check Supabase configuration and table health
 router.get('/health/database', systemController.getDatabaseHealth);
 
 module.exports = router;

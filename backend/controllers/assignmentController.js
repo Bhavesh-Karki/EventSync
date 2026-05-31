@@ -1,161 +1,159 @@
-const mongoose = require("mongoose");
-const Assignment = require("../models/Assignment");
-const Event = require("../models/Event");
-const Volunteer = require("../models/Volunteer");
+const { getSupabase } = require('../config/database');
+const {
+  assignmentPayload,
+  compact,
+  isUuid,
+  mapAssignment
+} = require('../utils/supabaseRecords');
 
-const VALID_STATUSES = ["pending", "in-progress", "completed", "cancelled"];
+const VALID_STATUSES = ['pending', 'in-progress', 'completed', 'cancelled'];
 
-const sendError = (res, error, fallback = "Server error") => {
-  const isClientError =
-    error.name === "ValidationError" ||
-    error.name === "CastError" ||
-    /not found|invalid|required|already|full/i.test(error.message || "");
+const sendError = (res, error, fallback = 'Server error') => {
+  const status = /not found|invalid|required|already|capacity|violates|duplicate/i.test(error.message || '')
+    ? 400
+    : 500;
 
-  return res.status(isClientError ? 400 : 500).json({
+  return res.status(status).json({
     success: false,
-    message: error.message || fallback,
+    message: error.code === '23505' ? 'This assignment already exists' : error.message || fallback,
     data: null
   });
 };
 
 const getId = (value) => {
-  if (!value) return "";
-  if (typeof value === "object") return String(value._id || value.id || "");
+  if (!value) return '';
+  if (typeof value === 'object') return String(value.id || value._id || '');
   return String(value);
 };
 
-const getAssignmentPayload = (body) => ({
-  event: getId(body.event || body.eventId),
-  volunteer: getId(body.volunteer || body.volunteerId),
-  duty: body.duty,
-  schedule: body.schedule,
-  priority: body.priority,
-  notes: body.notes,
-  status: body.status
-});
+const fetchRowsById = async (table, ids) => {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (!uniqueIds.length) return {};
 
-const validateObjectId = (id, label) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new Error(`Invalid ${label} ID`);
-  }
+  const { data, error } = await getSupabase()
+    .from(table)
+    .select('*')
+    .in('id', uniqueIds);
+
+  if (error) throw error;
+
+  return (data || []).reduce((acc, row) => {
+    acc[row.id] = row;
+    return acc;
+  }, {});
 };
 
-const populateAssignment = (query) =>
-  query
-    .populate("event", "name date location status")
-    .populate("volunteer", "name email phone status");
+const populateAssignments = async (assignments) => {
+  const events = await fetchRowsById('events', assignments.map((a) => a.event_id));
+  const volunteers = await fetchRowsById('volunteers', assignments.map((a) => a.volunteer_id));
 
-const syncAssignmentRefs = async (oldAssignment, assignment) => {
-  const oldEventId = getId(oldAssignment && oldAssignment.event);
-  const oldVolunteerId = getId(oldAssignment && oldAssignment.volunteer);
-  const eventId = getId(assignment.event);
-  const volunteerId = getId(assignment.volunteer);
-
-  if (oldEventId && oldEventId !== eventId) {
-    await Event.findByIdAndUpdate(oldEventId, { $pull: { volunteers: oldVolunteerId || volunteerId } });
-  }
-
-  if (oldVolunteerId && oldVolunteerId !== volunteerId) {
-    await Volunteer.findByIdAndUpdate(oldVolunteerId, { $pull: { eventsAssigned: oldEventId || eventId } });
-  }
-
-  await Event.findByIdAndUpdate(eventId, { $addToSet: { volunteers: volunteerId } });
-  await Volunteer.findByIdAndUpdate(volunteerId, { $addToSet: { eventsAssigned: eventId } });
+  return assignments.map((assignment) =>
+    mapAssignment(assignment, events[assignment.event_id], volunteers[assignment.volunteer_id])
+  );
 };
 
 const ensureAssignmentTargets = async (eventId, volunteerId, assignmentId = null) => {
-  validateObjectId(eventId, "event");
-  validateObjectId(volunteerId, "volunteer");
+  if (!isUuid(eventId)) throw new Error('Invalid event ID');
+  if (!isUuid(volunteerId)) throw new Error('Invalid volunteer ID');
 
-  const [event, volunteer] = await Promise.all([
-    Event.findById(eventId),
-    Volunteer.findById(volunteerId)
+  const supabase = getSupabase();
+  const [{ data: event, error: eventError }, { data: volunteer, error: volunteerError }] = await Promise.all([
+    supabase.from('events').select('*').eq('id', eventId).single(),
+    supabase.from('volunteers').select('*').eq('id', volunteerId).single()
   ]);
 
-  if (!event) throw new Error("Event not found");
-  if (!volunteer) throw new Error("Volunteer not found");
-  if (event.volunteers.length >= event.capacity && !event.volunteers.some((id) => String(id) === volunteerId)) {
-    throw new Error("Event is at full capacity");
-  }
+  if (eventError || !event) throw new Error('Event not found');
+  if (volunteerError || !volunteer) throw new Error('Volunteer not found');
 
-  const duplicateQuery = {
-    event: eventId,
-    volunteer: volunteerId,
-    status: { $ne: "cancelled" }
-  };
+  const duplicateQuery = supabase
+    .from('assignments')
+    .select('id')
+    .eq('event_id', eventId)
+    .eq('volunteer_id', volunteerId)
+    .neq('status', 'cancelled');
 
-  if (assignmentId) {
-    duplicateQuery._id = { $ne: assignmentId };
-  }
+  const { data: duplicates, error: duplicateError } = assignmentId
+    ? await duplicateQuery.neq('id', assignmentId)
+    : await duplicateQuery;
 
-  const duplicate = await Assignment.findOne(duplicateQuery);
-  if (duplicate) {
-    throw new Error("Volunteer is already assigned to this event");
-  }
+  if (duplicateError) throw duplicateError;
+  if ((duplicates || []).length) throw new Error('Volunteer is already assigned to this event');
+
+  const { count, error: countError } = await supabase
+    .from('assignments')
+    .select('id', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+    .neq('status', 'cancelled');
+
+  if (countError) throw countError;
+  if ((count || 0) >= (event.capacity || 50)) throw new Error('Event is at full capacity');
 };
 
 const getAllAssignments = async (req, res) => {
   try {
-    const assignments = await populateAssignment(Assignment.find()).sort({ createdAt: -1 });
+    const { data, error } = await getSupabase()
+      .from('assignments')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
 
     return res.status(200).json({
       success: true,
-      message: "Assignments retrieved successfully",
-      data: assignments
+      message: 'Assignments retrieved successfully',
+      data: await populateAssignments(data || [])
     });
   } catch (error) {
-    console.error("Error in getAllAssignments controller:", error);
-    return sendError(res, error, "Failed to retrieve assignments");
+    console.error('Error in getAllAssignments controller:', error);
+    return sendError(res, error, 'Failed to retrieve assignments');
   }
 };
 
 const createAssignment = async (req, res) => {
   try {
-    const payload = getAssignmentPayload(req.body);
-    await ensureAssignmentTargets(payload.event, payload.volunteer);
+    const payload = assignmentPayload(req.body);
+    await ensureAssignmentTargets(payload.event_id, payload.volunteer_id);
 
-    const assignment = await Assignment.create({
-      event: payload.event,
-      volunteer: payload.volunteer,
-      duty: payload.duty,
-      schedule: payload.schedule,
-      priority: payload.priority || "medium",
-      notes: payload.notes || "",
-      status: payload.status || "pending"
-    });
+    const { data, error } = await getSupabase()
+      .from('assignments')
+      .insert(payload)
+      .select()
+      .single();
 
-    if (assignment.status !== "cancelled") {
-      await syncAssignmentRefs(null, assignment);
-    }
+    if (error) throw error;
 
-    const populatedAssignment = await populateAssignment(Assignment.findById(assignment._id));
+    const [assignment] = await populateAssignments([data]);
 
     return res.status(201).json({
       success: true,
-      message: "Assignment created successfully",
-      data: populatedAssignment
+      message: 'Assignment created successfully',
+      data: assignment
     });
   } catch (error) {
-    console.error("Error in createAssignment controller:", error);
-    return sendError(res, error, "Failed to create assignment");
+    console.error('Error in createAssignment controller:', error);
+    return sendError(res, error, 'Failed to create assignment');
   }
 };
 
 const getAssignmentsByVolunteer = async (req, res) => {
   try {
-    validateObjectId(req.params.volunteerId, "volunteer");
+    if (!isUuid(req.params.volunteerId)) throw new Error('Invalid volunteer ID');
 
-    const assignments = await populateAssignment(
-      Assignment.find({ volunteer: req.params.volunteerId })
-    ).sort({ createdAt: -1 });
+    const { data, error } = await getSupabase()
+      .from('assignments')
+      .select('*')
+      .eq('volunteer_id', req.params.volunteerId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
 
     return res.status(200).json({
       success: true,
-      data: assignments
+      data: await populateAssignments(data || [])
     });
   } catch (error) {
-    console.error("Error in getAssignmentsByVolunteer controller:", error);
-    return sendError(res, error, "Failed to retrieve assignments");
+    console.error('Error in getAssignmentsByVolunteer controller:', error);
+    return sendError(res, error, 'Failed to retrieve assignments');
   }
 };
 
@@ -163,139 +161,138 @@ const updateAssignmentStatus = async (req, res) => {
   try {
     const { status } = req.body;
     if (!VALID_STATUSES.includes(status)) {
-      throw new Error(`Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`);
+      throw new Error(`Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`);
     }
 
     const updates = { status };
-    const unset = {};
-    if (status === "in-progress") {
-      updates.startedAt = new Date();
-      updates.hoursWorked = 0;
-      unset.completedAt = "";
+    if (status === 'in-progress') {
+      updates.started_at = new Date().toISOString();
+      updates.completed_at = null;
+      updates.hours_worked = 0;
     }
-    if (status === "completed") {
-      updates.completedAt = new Date();
+    if (status === 'completed') {
+      updates.completed_at = new Date().toISOString();
     }
-    if (status === "pending") {
-      updates.hoursWorked = 0;
-      unset.startedAt = "";
-      unset.completedAt = "";
-    }
-
-    let assignment = await Assignment.findById(req.params.id);
-    if (!assignment) {
-      throw new Error("Assignment not found");
-    }
-    const previousAssignment = assignment;
-
-    if (status === "completed" && assignment.startedAt) {
-      updates.hoursWorked = Math.max(0, (updates.completedAt - assignment.startedAt) / (1000 * 60 * 60));
+    if (status === 'pending') {
+      updates.started_at = null;
+      updates.completed_at = null;
+      updates.hours_worked = 0;
     }
 
-    assignment = await populateAssignment(
-      Assignment.findByIdAndUpdate(
-        req.params.id,
-        { $set: updates, ...(Object.keys(unset).length ? { $unset: unset } : {}) },
-        { new: true, runValidators: true }
-      )
-    );
+    const { data: existing, error: existingError } = await getSupabase()
+      .from('assignments')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
 
-    if (status === "cancelled") {
-      await Promise.all([
-        Event.findByIdAndUpdate(previousAssignment.event, { $pull: { volunteers: previousAssignment.volunteer } }),
-        Volunteer.findByIdAndUpdate(previousAssignment.volunteer, { $pull: { eventsAssigned: previousAssignment.event } })
-      ]);
-    } else {
-      await syncAssignmentRefs(previousAssignment, assignment);
+    if (existingError || !existing) throw new Error('Assignment not found');
+
+    if (status === 'completed' && existing.started_at) {
+      updates.hours_worked = Math.max(
+        0,
+        (new Date(updates.completed_at) - new Date(existing.started_at)) / (1000 * 60 * 60)
+      );
     }
 
+    const { data, error } = await getSupabase()
+      .from('assignments')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const [assignment] = await populateAssignments([data]);
     return res.json({ success: true, data: assignment });
   } catch (error) {
-    console.error("Error in updateAssignmentStatus:", error);
+    console.error('Error in updateAssignmentStatus:', error);
     return sendError(res, error);
   }
 };
 
 const getAssignmentStats = async (req, res) => {
   try {
-    const total = await Assignment.countDocuments();
-    const pending = await Assignment.countDocuments({ status: "pending" });
-    const inProgress = await Assignment.countDocuments({ status: "in-progress" });
-    const completed = await Assignment.countDocuments({ status: "completed" });
-    const cancelled = await Assignment.countDocuments({ status: "cancelled" });
+    const { data, error } = await getSupabase().from('assignments').select('status');
+    if (error) throw error;
 
-    res.json({
-      success: true,
-      data: { total, pending, inProgress, completed, cancelled }
-    });
+    const assignments = data || [];
+    const stats = assignments.reduce(
+      (acc, assignment) => {
+        acc.total += 1;
+        if (assignment.status === 'pending') acc.pending += 1;
+        if (assignment.status === 'in-progress') acc.inProgress += 1;
+        if (assignment.status === 'completed') acc.completed += 1;
+        if (assignment.status === 'cancelled') acc.cancelled += 1;
+        return acc;
+      },
+      { total: 0, pending: 0, inProgress: 0, completed: 0, cancelled: 0 }
+    );
+
+    res.json({ success: true, data: stats });
   } catch (error) {
-    console.error("Error in getAssignmentStats:", error);
+    console.error('Error in getAssignmentStats:', error);
     return sendError(res, error);
   }
 };
 
 const updateAssignment = async (req, res) => {
   try {
-    const existing = await Assignment.findById(req.params.id);
-    if (!existing) {
-      throw new Error("Assignment not found");
-    }
+    if (!isUuid(req.params.id)) throw new Error('Invalid assignment ID');
 
-    const payload = getAssignmentPayload(req.body);
-    const eventId = payload.event || getId(existing.event);
-    const volunteerId = payload.volunteer || getId(existing.volunteer);
+    const { data: existing, error: existingError } = await getSupabase()
+      .from('assignments')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
 
-    if (eventId !== getId(existing.event) || volunteerId !== getId(existing.volunteer)) {
+    if (existingError || !existing) throw new Error('Assignment not found');
+
+    const payload = assignmentPayload(req.body);
+    const eventId = payload.event_id || existing.event_id;
+    const volunteerId = payload.volunteer_id || existing.volunteer_id;
+
+    if (eventId !== existing.event_id || volunteerId !== existing.volunteer_id) {
       await ensureAssignmentTargets(eventId, volunteerId, req.params.id);
     }
 
-    const updates = {
-      event: eventId,
-      volunteer: volunteerId,
-      duty: payload.duty,
-      schedule: payload.schedule,
-      priority: payload.priority,
-      notes: payload.notes,
-      status: payload.status
-    };
+    const updates = compact({
+      ...payload,
+      event_id: eventId,
+      volunteer_id: volunteerId
+    });
 
-    Object.keys(updates).forEach((key) => updates[key] === undefined && delete updates[key]);
+    const { data, error } = await getSupabase()
+      .from('assignments')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
 
-    const assignment = await populateAssignment(
-      Assignment.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true })
-    );
+    if (error) throw error;
 
-    if (assignment.status === "cancelled") {
-      await Promise.all([
-        Event.findByIdAndUpdate(existing.event, { $pull: { volunteers: existing.volunteer } }),
-        Volunteer.findByIdAndUpdate(existing.volunteer, { $pull: { eventsAssigned: existing.event } })
-      ]);
-    } else {
-      await syncAssignmentRefs(existing, assignment);
-    }
-
+    const [assignment] = await populateAssignments([data]);
     res.json({ success: true, data: assignment });
   } catch (error) {
-    console.error("Error in updateAssignment:", error);
+    console.error('Error in updateAssignment:', error);
     return sendError(res, error);
   }
 };
 
 const deleteAssignment = async (req, res) => {
   try {
-    const assignment = await Assignment.findByIdAndDelete(req.params.id);
-    if (!assignment) {
-      throw new Error("Assignment not found");
-    }
+    if (!isUuid(req.params.id)) throw new Error('Invalid assignment ID');
 
-    await Promise.all([
-      Event.findByIdAndUpdate(assignment.event, { $pull: { volunteers: assignment.volunteer } }),
-      Volunteer.findByIdAndUpdate(assignment.volunteer, { $pull: { eventsAssigned: assignment.event } })
-    ]);
+    const { error } = await getSupabase()
+      .from('assignments')
+      .delete()
+      .eq('id', req.params.id);
 
-    res.json({ success: true, message: "Assignment deleted successfully" });
+    if (error) throw error;
+
+    res.json({ success: true, message: 'Assignment deleted successfully' });
   } catch (error) {
-    console.error("Error in deleteAssignment:", error);
+    console.error('Error in deleteAssignment:', error);
     return sendError(res, error);
   }
 };

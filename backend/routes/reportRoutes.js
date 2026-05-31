@@ -1,9 +1,3 @@
-// ========================================
-// ROUTES - routes/reportRoutes.js
-// ========================================
-// Demonstrates file generation routes
-// ========================================
-
 const express = require('express');
 const router = express.Router();
 

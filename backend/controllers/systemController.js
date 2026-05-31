@@ -1,195 +1,126 @@
-// ========================================
-// CONTROLLER - controllers/systemController.js
-// ========================================
-// This demonstrates:
-// 1. Using OS module through custom utility
-// 2. File system operations for reports
-// 3. Async operations for system info
-// ========================================
+const fs = require('fs');
+const path = require('path');
 
-// Importing custom modules
-const systemInfo = require('../utils/systemInfo');
+const { getSupabase, getDatabaseStatus, getDatabaseStats } = require('../config/database');
 const fileOps = require('../utils/fileOperations');
 const { createPdfBuffer } = require('../utils/pdfReport');
+const { mapAssignment, mapEvent, mapVolunteer } = require('../utils/supabaseRecords');
+const systemInfo = require('../utils/systemInfo');
 
-// Using Path module
-const path = require('path');
-const fs = require('fs');
-const Event = require('../models/Event');
-const Volunteer = require('../models/Volunteer');
-const Assignment = require('../models/Assignment');
-
-// ========================================
-// GET SYSTEM INFORMATION
-// ========================================
-/**
- * Get basic system information
- * Demonstrates OS module usage through utility
- */
 async function getSystemInfo(req, res) {
     try {
-        // Using custom systemInfo module (demonstrates OS module usage)
-        const sysInfo = systemInfo.getSystemInfo();
-        
         res.status(200).json({
             success: true,
             message: 'System information retrieved successfully',
-            data: sysInfo
+            data: systemInfo.getSystemInfo()
         });
     } catch (error) {
         console.error('Error in getSystemInfo controller:', error.message);
-        
-        res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve system information',
-            data: null
-        });
+        res.status(500).json({ success: false, message: 'Failed to retrieve system information', data: null });
     }
 }
 
-// ========================================
-// GET DETAILED SYSTEM REPORT
-// ========================================
-/**
- * Get comprehensive system report
- * Demonstrates multiple OS module methods
- */
 async function getSystemReport(req, res) {
     try {
-        // Get complete system report
-        const report = systemInfo.getSystemReport();
-        
         res.status(200).json({
             success: true,
             message: 'System report generated successfully',
-            data: report
+            data: systemInfo.getSystemReport()
         });
     } catch (error) {
         console.error('Error in getSystemReport controller:', error.message);
-        
-        res.status(500).json({
-            success: false,
-            message: 'Failed to generate system report',
-            data: null
-        });
+        res.status(500).json({ success: false, message: 'Failed to generate system report', data: null });
     }
 }
 
-// ========================================
-// GET MEMORY STATISTICS
-// ========================================
-/**
- * Get memory statistics
- * Demonstrates os.totalmem() and os.freemem()
- */
 async function getMemoryStats(req, res) {
     try {
-        const memStats = systemInfo.getMemoryStats();
-        
         res.status(200).json({
             success: true,
             message: 'Memory statistics retrieved successfully',
-            data: memStats
+            data: systemInfo.getMemoryStats()
         });
     } catch (error) {
         console.error('Error in getMemoryStats controller:', error.message);
-        
-        res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve memory statistics',
-            data: null
-        });
+        res.status(500).json({ success: false, message: 'Failed to retrieve memory statistics', data: null });
     }
 }
 
-// ========================================
-// GET CPU INFORMATION
-// ========================================
-/**
- * Get CPU information
- * Demonstrates os.cpus() usage
- */
 async function getCPUInfo(req, res) {
     try {
-        const cpuInfo = systemInfo.getCPUInfo();
-        
         res.status(200).json({
             success: true,
             message: 'CPU information retrieved successfully',
-            data: cpuInfo
+            data: systemInfo.getCPUInfo()
         });
     } catch (error) {
         console.error('Error in getCPUInfo controller:', error.message);
-        
-        res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve CPU information',
-            data: null
-        });
+        res.status(500).json({ success: false, message: 'Failed to retrieve CPU information', data: null });
     }
 }
 
-// ========================================
-// GET APPLICATION LOGS
-// ========================================
-/**
- * Get application logs
- * Demonstrates fs.readFile for logs
- */
 async function getLogs(req, res) {
     try {
-        // Using file operations to read logs (demonstrates fs module)
         const result = await fileOps.readLogs();
-        
         res.status(200).json({
             success: true,
             message: 'Logs retrieved successfully',
-            data: {
-                logs: result.logs
-            }
+            data: { logs: result.logs }
         });
     } catch (error) {
         console.error('Error in getLogs controller:', error.message);
-        
-        res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve logs',
-            data: null
-        });
+        res.status(500).json({ success: false, message: 'Failed to retrieve logs', data: null });
     }
 }
 
-// ========================================
-// GENERATE VOLUNTEER REPORT
-// ========================================
-/**
- * Generate comprehensive volunteer report and save to file
- * Demonstrates fs.writeFile with complex data
- */
+async function getReportData() {
+    const supabase = getSupabase();
+    const [eventsRes, volunteersRes, assignmentsRes] = await Promise.all([
+        supabase.from('events').select('*').order('date', { ascending: true }),
+        supabase.from('volunteers').select('*').order('name', { ascending: true }),
+        supabase.from('assignments').select('*').order('created_at', { ascending: false })
+    ]);
+
+    if (eventsRes.error) throw eventsRes.error;
+    if (volunteersRes.error) throw volunteersRes.error;
+    if (assignmentsRes.error) throw assignmentsRes.error;
+
+    const eventsById = (eventsRes.data || []).reduce((acc, event) => {
+        acc[event.id] = event;
+        return acc;
+    }, {});
+    const volunteersById = (volunteersRes.data || []).reduce((acc, volunteer) => {
+        acc[volunteer.id] = volunteer;
+        return acc;
+    }, {});
+
+    const assignments = (assignmentsRes.data || []).map((assignment) =>
+        mapAssignment(assignment, eventsById[assignment.event_id], volunteersById[assignment.volunteer_id])
+    );
+    const events = (eventsRes.data || []).map(mapEvent);
+    const volunteers = (volunteersRes.data || []).map((volunteer) => {
+        const assignedEventIds = assignments
+            .filter(a => a.volunteer?.id === volunteer.id && a.status !== 'cancelled')
+            .map(a => a.event?.id)
+            .filter(Boolean);
+        return mapVolunteer(volunteer, assignedEventIds);
+    });
+
+    return { assignments, events, volunteers };
+}
+
 async function generateVolunteerReport(req, res) {
     try {
-        const [events, volunteers, assignments] = await Promise.all([
-            Event.find().sort({ date: 1 }).lean({ virtuals: true }),
-            Volunteer.find().sort({ name: 1 }).lean({ virtuals: true }),
-            Assignment.find()
-                .populate('event', 'name date location status')
-                .populate('volunteer', 'name email phone status')
-                .sort({ createdAt: -1 })
-                .lean({ virtuals: true })
-        ]);
-
+        const { assignments, events, volunteers } = await getReportData();
         const stats = {
             total: assignments.length,
             pending: assignments.filter(a => a.status === 'pending').length,
-            inProgress: assignments.filter(a => a.status === 'in-progress').length,
-            completed: assignments.filter(a => a.status === 'completed').length,
-            cancelled: assignments.filter(a => a.status === 'cancelled').length
+            completed: assignments.filter(a => a.status === 'completed').length
         };
-        
+
         const report = {
             reportType: 'Volunteer Coordination Report',
             generatedAt: new Date().toISOString(),
-            generatedBy: 'System',
             summary: {
                 totalEvents: events.length,
                 totalVolunteers: volunteers.length,
@@ -197,37 +128,10 @@ async function generateVolunteerReport(req, res) {
                 completedAssignments: stats.completed,
                 pendingAssignments: stats.pending,
                 activeVolunteers: volunteers.filter(v => v.status === 'active').length
-            },
-            events: events.map(e => ({
-                id: String(e._id),
-                name: e.name,
-                date: e.date,
-                location: e.location,
-                status: e.status,
-                volunteersAssigned: (e.volunteers || []).length
-            })),
-            volunteers: volunteers.map(v => ({
-                id: String(v._id),
-                name: v.name,
-                email: v.email,
-                skills: v.skills || [],
-                eventsCount: (v.eventsAssigned || []).length,
-                status: v.status
-            })),
-            assignments: assignments.map(a => ({
-                id: String(a._id),
-                eventName: a.event?.name || 'Deleted event',
-                volunteerName: a.volunteer?.name || 'Deleted volunteer',
-                duty: a.duty,
-                status: a.status,
-                schedule: a.schedule
-            })),
-            systemInfo: systemInfo.getSystemInfo()
+            }
         };
-        
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `volunteer-report-${timestamp}.pdf`;
-        const reportLines = [
+
+        const lines = [
             report.reportType,
             `Generated at: ${new Date(report.generatedAt).toLocaleString()}`,
             '',
@@ -240,23 +144,25 @@ async function generateVolunteerReport(req, res) {
             `Completed assignments: ${report.summary.completedAssignments}`,
             '',
             'Events',
-            ...report.events.flatMap((event) => [
+            ...events.flatMap((event) => [
                 `${event.name} | ${new Date(event.date).toLocaleDateString()} | ${event.location} | ${event.status}`,
-                `Assigned volunteers: ${event.volunteersAssigned}`
+                `Assigned volunteers: ${assignments.filter(a => a.event?.id === event.id && a.status !== 'cancelled').length}`
             ]),
             '',
             'Volunteers',
-            ...report.volunteers.map((volunteer) =>
-                `${volunteer.name} | ${volunteer.email} | ${volunteer.status} | Skills: ${volunteer.skills.join(', ') || 'None'}`
+            ...volunteers.map((volunteer) =>
+                `${volunteer.name} | ${volunteer.email} | ${volunteer.status} | Skills: ${(volunteer.skills || []).join(', ') || 'None'}`
             ),
             '',
             'Assignments',
-            ...report.assignments.map((assignment) =>
-                `${assignment.eventName} -> ${assignment.volunteerName} | ${assignment.duty} | ${assignment.schedule} | ${assignment.status}`
+            ...assignments.map((assignment) =>
+                `${assignment.event?.name || 'Deleted event'} -> ${assignment.volunteer?.name || 'Deleted volunteer'} | ${assignment.duty} | ${assignment.schedule} | ${assignment.status}`
             )
         ];
 
-        const pdfBuffer = createPdfBuffer(reportLines);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `volunteer-report-${timestamp}.pdf`;
+        const pdfBuffer = createPdfBuffer(lines);
         const filePath = path.join(fileOps.DATA_DIR, filename);
 
         await fs.promises.writeFile(filePath, pdfBuffer);
@@ -268,101 +174,55 @@ async function generateVolunteerReport(req, res) {
         res.status(200).send(pdfBuffer);
     } catch (error) {
         console.error('Error in generateVolunteerReport controller:', error.message);
-        
-        res.status(500).json({
-            success: false,
-            message: 'Failed to generate volunteer report',
-            data: null
-        });
+        res.status(500).json({ success: false, message: 'Failed to generate volunteer report', data: null });
     }
 }
 
-// ========================================
-// LIST DATA FILES
-// ========================================
-/**
- * List all data files
- * Demonstrates fs.readdir usage
- */
 async function listDataFiles(req, res) {
     try {
-        // Using file operations to list files (demonstrates fs.readdir)
         const result = await fileOps.listFiles(fileOps.DATA_DIR);
-        
-        res.status(200).json({
-            success: true,
-            message: 'Data files listed successfully',
-            data: result.files
-        });
+        res.status(200).json({ success: true, message: 'Data files listed successfully', data: result.files });
     } catch (error) {
         console.error('Error in listDataFiles controller:', error.message);
-        
-        res.status(500).json({
-            success: false,
-            message: 'Failed to list data files',
-            data: null
-        });
+        res.status(500).json({ success: false, message: 'Failed to list data files', data: null });
     }
 }
 
-// ========================================
-// GET DATABASE HEALTH STATUS
-// ========================================
-/**
- * Get MongoDB connection health status
- * Demonstrates database connection verification
- */
 async function getDatabaseHealth(req, res) {
     try {
-        const { getDatabaseStatus, getDatabaseStats, mongoose } = require('../config/database');
-        
         const status = getDatabaseStatus();
         let stats = null;
-        
-        if (status.isConnected) {
+        let statsErrorMessage = null;
+
+        if (status.isConfigured) {
             try {
                 stats = await getDatabaseStats();
             } catch (statsError) {
-                console.warn('Could not retrieve database stats:', statsError.message);
+                statsErrorMessage = statsError.message;
             }
         }
-        
-        const health = {
-            databaseType: 'MongoDB',
-            status: status.isConnected ? 'Connected ✅' : 'Disconnected ⚠️',
-            isConnected: status.isConnected,
-            readyState: status.readyState,
-            readyStateDescription: {
-                0: 'Disconnected',
-                1: 'Connected',
-                2: 'Connecting',
-                3: 'Disconnecting'
-            }[status.readyState],
-            host: status.host || 'N/A',
-            port: status.port || 'N/A',
-            database: status.name || 'N/A',
-            models: status.models,
-            mongooseVersion: mongoose.version,
-            stats: stats
-        };
-        
-        res.status(status.isConnected ? 200 : 503).json({
-            success: status.isConnected,
-            message: status.isConnected ? 'Database is healthy' : 'Database connection issue',
-            data: health
+
+        const healthy = status.isConfigured && !statsErrorMessage;
+
+        res.status(healthy ? 200 : 503).json({
+            success: healthy,
+            message: healthy ? 'Supabase is healthy' : 'Supabase configuration or table setup needs attention',
+            data: {
+                databaseType: 'Supabase',
+                status: healthy ? 'Connected' : 'Needs attention',
+                isConfigured: status.isConfigured,
+                projectUrl: status.projectUrl,
+                tables: status.tables,
+                stats,
+                error: statsErrorMessage
+            }
         });
     } catch (error) {
         console.error('Error in getDatabaseHealth controller:', error.message);
-        
-        res.status(500).json({
-            success: false,
-            message: 'Failed to check database health',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Failed to check database health', error: error.message });
     }
 }
 
-// Module exports
 module.exports = {
     getSystemInfo,
     getSystemReport,

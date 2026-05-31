@@ -35,3 +35,4 @@ coverage/
 
 Event-volunteer-.zip
 MONGODB_SETUP.md
+supabase-schema.sql

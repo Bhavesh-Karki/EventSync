@@ -1,63 +1,78 @@
 require('dotenv').config({ override: true });
 
-const mongoose = require('mongoose');
+const { createClient } = require('@supabase/supabase-js');
 
-const DEFAULT_DB_NAME = 'event_volunteer_db';
+const TABLES = ['events', 'volunteers', 'assignments'];
 
-const connectDB = async () => {
-  try {
-    if (!process.env.MONGODB_URI) {
-      throw new Error('MONGODB_URI is not configured');
-    }
+let supabaseClient = null;
 
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      dbName: process.env.MONGODB_DB_NAME || DEFAULT_DB_NAME,
-      serverSelectionTimeoutMS: 30000,
-      socketTimeoutMS: 45000
-    });
+const getSupabaseConfig = () => {
+  const url = process.env.SUPABASE_URL;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_KEY ||
+    process.env.SUPABASE_ANON_KEY;
 
-    console.log('MongoDB connected successfully');
-    console.log(`Database: ${conn.connection.name}`);
-  } catch (error) {
-    console.error('MongoDB connection error:', error.message);
-    process.exit(1);
-  }
+  return { url, key };
 };
 
-mongoose.connection.on('connected', () => {
-  console.log('Mongoose connected to MongoDB');
-});
+const getSupabase = () => {
+  if (supabaseClient) {
+    return supabaseClient;
+  }
 
-mongoose.connection.on('error', (err) => {
-  console.error('Mongoose connection error:', err);
-});
+  const { url, key } = getSupabaseConfig();
 
-mongoose.connection.on('disconnected', () => {
-  console.log('Mongoose disconnected from MongoDB');
-});
+  if (!url || !key) {
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+  }
+
+  supabaseClient = createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  });
+
+  return supabaseClient;
+};
+
+const connectDB = async () => {
+  getSupabase();
+  console.log('Supabase client configured');
+};
 
 const getDatabaseStatus = () => {
-  const { connection } = mongoose;
+  const { url, key } = getSupabaseConfig();
 
   return {
-    isConnected: connection.readyState === 1,
-    readyState: connection.readyState,
-    host: connection.host,
-    port: connection.port,
-    name: connection.name,
-    models: Object.keys(connection.models || {})
+    databaseType: 'Supabase',
+    isConfigured: Boolean(url && key),
+    projectUrl: url || null,
+    tables: TABLES
   };
 };
 
 const getDatabaseStats = async () => {
-  if (mongoose.connection.readyState !== 1) {
-    throw new Error('MongoDB is not connected');
+  const supabase = getSupabase();
+  const stats = {};
+
+  for (const table of TABLES) {
+    const { count, error } = await supabase
+      .from(table)
+      .select('id', { count: 'exact', head: true });
+
+    if (error) {
+      throw new Error(`${table}: ${error.message}`);
+    }
+
+    stats[table] = count || 0;
   }
 
-  return mongoose.connection.db.stats();
+  return stats;
 };
 
 module.exports = connectDB;
+module.exports.getSupabase = getSupabase;
 module.exports.getDatabaseStatus = getDatabaseStatus;
 module.exports.getDatabaseStats = getDatabaseStats;
-module.exports.mongoose = mongoose;
