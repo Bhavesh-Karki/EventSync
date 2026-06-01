@@ -1,6 +1,6 @@
 <div align="center">
 
-#  EventSync
+#  [EventSync](https://eventsync-seven.vercel.app/)
 
 ### Streamlined Event & Volunteer Management System
 
