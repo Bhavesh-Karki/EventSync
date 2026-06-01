@@ -1,16 +1,7 @@
-:root {
-  --bg-primary: #F1F3E0;
-  --bg-secondary: #D2DCB6;
-  --accent-primary: #778873;
-  --accent-secondary: #A1BC98;
-  --text-primary: #3A4638;
-  --text-secondary: #5C6E59;
-  --white: #ffffff;
-  --danger: #e74c3c;
-  --warning: #f39c12;
-  --success: #2ecc71;
-  --shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-}
+/* Import centralized design tokens — single source of truth */
+@import './theme.css';
+
+/* ── All component & layout styles below consume var(--*) tokens from theme.css ── */
 
 * {
   margin: 0;
@@ -19,7 +10,7 @@
 }
 
 body {
-  font-family: 'Outfit', 'Segoe UI', sans-serif;
+  font-family: var(--font-family);
   background-color: var(--bg-primary);
   color: var(--text-primary);
 }
@@ -28,67 +19,9 @@ body {
   min-height: 100vh;
 }
 
-/* Login Page */
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-}
+/* Login Page styles → see components/Login.css */
 
-.login-box {
-  background: var(--bg-primary);
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  width: 100%;
-  max-width: 400px;
-  text-align: center;
-}
 
-.login-box h2 {
-  margin-bottom: 30px;
-  color: var(--text-primary);
-  font-weight: 700;
-}
-
-.role-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-top: 20px;
-}
-
-.role-button {
-  width: 100%;
-  padding: 15px;
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.role-button.admin {
-  background-color: var(--accent-primary);
-  color: white;
-}
-
-.role-button.volunteer {
-  background-color: var(--accent-secondary);
-  color: var(--text-primary);
-}
-
-.role-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-}
 
 /* Dashboard Layout */
 .dashboard {
@@ -98,9 +31,9 @@ body {
 }
 
 .sidebar {
-  width: 280px;
-  background-color: var(--accent-primary);
-  color: white;
+  width: var(--sidebar-width);
+  background-color: var(--sidebar-bg);
+  color: var(--sidebar-color);
   padding: 30px 20px;
   display: flex;
   flex-direction: column;
@@ -122,9 +55,9 @@ body {
 }
 
 .nav-item {
-  padding: 15px 20px;
+  padding: var(--nav-item-padding);
   margin-bottom: 8px;
-  border-radius: 12px;
+  border-radius: var(--nav-item-radius);
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -141,13 +74,13 @@ body {
 }
 
 .nav-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--nav-hover-bg);
   color: white;
 }
 
 .nav-item.active {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--nav-active-bg);
+  color: var(--nav-active-color);
   box-shadow: var(--shadow);
 }
 
@@ -205,11 +138,11 @@ body {
 }
 
 .stat-card {
-  background: var(--white);
-  padding: 30px;
-  border-radius: 20px;
+  background: var(--card-bg);
+  padding: var(--card-padding);
+  border-radius: var(--card-radius);
   box-shadow: var(--shadow);
-  border: 1px solid var(--bg-secondary);
+  border: var(--card-border);
   transition: transform 0.3s;
   position: relative;
   overflow: hidden;
@@ -238,19 +171,19 @@ body {
 }
 
 .stat-card .number {
-  font-size: 42px;
+  font-size: var(--font-size-hero);
   font-weight: 800;
   color: var(--text-primary);
 }
 
 /* Forms */
 .form-container {
-  background: var(--white);
+  background: var(--card-bg);
   padding: 35px;
-  border-radius: 20px;
+  border-radius: var(--card-radius);
   box-shadow: var(--shadow);
   margin-bottom: 40px;
-  border: 1px solid var(--bg-secondary);
+  border: var(--card-border);
 }
 
 .form-container h3 {
@@ -275,12 +208,12 @@ body {
 .form-group textarea,
 .form-group select {
   width: 100%;
-  padding: 12px 18px;
-  border: 2px solid var(--bg-secondary);
-  border-radius: 12px;
-  font-size: 15px;
+  padding: var(--input-padding);
+  border: var(--input-border);
+  border-radius: var(--input-radius);
+  font-size: var(--input-font-size);
   transition: all 0.3s;
-  background-color: var(--bg-primary);
+  background-color: var(--input-bg);
   color: var(--text-primary);
 }
 
@@ -289,16 +222,16 @@ body {
 .form-group select:focus {
   outline: none;
   border-color: var(--accent-secondary);
-  box-shadow: 0 0 0 4px rgba(161, 188, 152, 0.2);
+  box-shadow: var(--input-focus-ring);
 }
 
 .btn {
-  padding: 14px 28px;
+  padding: var(--btn-padding);
   border: none;
-  border-radius: 12px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--btn-font-size);
+  font-weight: var(--btn-font-weight);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;
   align-items: center;
@@ -332,11 +265,11 @@ body {
 
 /* Tables */
 .table-container {
-  background: var(--white);
+  background: var(--card-bg);
   padding: 30px;
-  border-radius: 20px;
+  border-radius: var(--card-radius);
   box-shadow: var(--shadow);
-  border: 1px solid var(--bg-secondary);
+  border: var(--card-border);
   overflow-x: auto;
 }
 
@@ -357,19 +290,19 @@ thead {
 }
 
 th {
-  padding: 18px 20px;
+  padding: var(--table-padding-th);
   text-align: left;
   font-weight: 700;
   text-transform: uppercase;
-  font-size: 12px;
+  font-size: var(--table-th-size);
   letter-spacing: 1px;
   border-bottom: 2px solid var(--bg-secondary);
 }
 
 td {
-  padding: 20px;
+  padding: var(--table-padding-td);
   border-bottom: 1px solid var(--bg-secondary);
-  font-size: 15px;
+  font-size: var(--table-td-size);
 }
 
 tbody tr:hover {
@@ -389,9 +322,9 @@ tbody tr:hover {
 
 /* Status Badges */
 .status-badge {
-  padding: 6px 12px;
-  border-radius: 10px;
-  font-size: 12px;
+  padding: var(--badge-padding);
+  border-radius: var(--badge-radius);
+  font-size: var(--badge-font-size);
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -522,43 +455,6 @@ select[multiple] {
   }
 }
 
-/* Login Extra Styles */
-.login-subtitle {
-  color: var(--text-secondary);
-  margin-bottom: 30px;
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  margin: 10px 0;
-  color: var(--text-secondary);
-}
-
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid var(--bg-secondary);
-}
-
-.divider span {
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.login-footer {
-  margin-top: 25px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-}
-
 /* Volunteer Profile Box */
 .volunteer-profile-box {
   padding: 20px;
@@ -566,6 +462,7 @@ select[multiple] {
   border-radius: 12px;
   margin-bottom: 30px;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: center;
 }
 
 .welcome-text {
@@ -640,4 +537,317 @@ select[multiple] {
   display: flex;
   align-items: center;
   gap: 5px;
+}
+/* ============================================
+   MOBILE RESPONSIVENESS
+   Breakpoints: ≤768px mobile, 769-1024px tablet
+   Desktop styles above are untouched.
+   ============================================ */
+
+/* --- Hamburger Button (hidden on desktop, hidden when sidebar is open) --- */
+.hamburger-btn {
+  display: none;
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  z-index: 1100;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  font-size: 18px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: background 0.2s;
+}
+
+.hamburger-btn:hover {
+  background: var(--text-primary);
+}
+
+/* --- Sidebar Close Button (always hidden — shown only on mobile when sidebar is open) --- */
+.sidebar-close-btn {
+  display: none;
+}
+
+/* --- Sidebar Overlay (mobile backdrop) --- */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 999;
+  backdrop-filter: blur(2px);
+}
+
+/* ---- Tablet (769px – 1024px) ---- */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .sidebar {
+    width: 220px;
+    padding: 25px 15px;
+  }
+
+  .sidebar h2 {
+    font-size: 18px;
+  }
+
+  .nav-item {
+    padding: 12px 15px;
+    font-size: 14px;
+  }
+
+  .main-content {
+    padding: 30px 25px;
+  }
+
+  .content-header h1 {
+    font-size: 26px;
+  }
+
+  .cards-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+
+  .stat-card .number {
+    font-size: 34px;
+  }
+
+  .form-container {
+    padding: 25px;
+  }
+
+  .table-container {
+    padding: 20px;
+  }
+
+  td, th {
+    padding: 14px 15px;
+  }
+}
+
+/* ---- Mobile (≤768px) ---- */
+@media (max-width: 768px) {
+
+  /* Show hamburger only when sidebar is closed */
+  .hamburger-btn {
+    display: flex;
+  }
+
+  /* Hide hamburger when sidebar is open — X takes over */
+  .sidebar-open .hamburger-btn {
+    display: none;
+  }
+
+  /* Show overlay when sidebar open */
+  .sidebar-overlay.open {
+    display: block;
+  }
+
+  /* Dashboard: stack vertically, sidebar flies in from left */
+  .dashboard {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 270px;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Close (X) button inside sidebar: show only on mobile when sidebar is open */
+  .sidebar.open .sidebar-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .sidebar.open .sidebar-close-btn:hover {
+    background: rgba(255,255,255,0.3);
+  }
+
+  /* Main content: full width, top padding for hamburger */
+  .main-content {
+    flex: 1;
+    padding: 70px 18px 24px;
+    min-height: 100vh;
+    width: 100%;
+  }
+
+  /* Content header */
+  .content-header {
+    margin-bottom: 24px;
+  }
+
+  .content-header h1 {
+    font-size: 22px;
+  }
+
+  .content-header p {
+    font-size: 14px;
+  }
+
+  /* Stat cards: 2 columns on mobile */
+  .cards-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    padding: 20px 16px;
+    border-radius: 14px;
+  }
+
+  .stat-card h3 {
+    font-size: 11px;
+    margin-bottom: 10px;
+  }
+
+  .stat-card .number {
+    font-size: 30px;
+  }
+
+  /* Forms */
+  .form-container {
+    padding: 20px 16px;
+    border-radius: 14px;
+    margin-bottom: 24px;
+  }
+
+  .form-container h3 {
+    font-size: 17px;
+    margin-bottom: 18px;
+  }
+
+  .form-group {
+    margin-bottom: 18px;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    padding: 11px 14px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    border-radius: 10px;
+  }
+
+  /* Buttons: stack on mobile */
+  .action-buttons {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .action-buttons .btn {
+    padding: 8px 11px;
+    font-size: 12px;
+  }
+
+  .btn {
+    padding: 13px 20px;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+
+  /* Tables: horizontal scroll + compact */
+  .table-container {
+    padding: 16px 14px;
+    border-radius: 14px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-container h3 {
+    font-size: 16px;
+    margin-bottom: 14px;
+  }
+
+  table {
+    min-width: 520px;
+  }
+
+  th {
+    padding: 12px 14px;
+    font-size: 11px;
+  }
+
+  td {
+    padding: 14px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  /* Status badges */
+  .status-badge {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  /* Profile info grid */
+  .profile-info-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  /* Messages */
+  .message {
+    padding: 12px 16px;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+
+  /* Volunteer profile box in sidebar */
+  .volunteer-profile-box {
+    padding: 14px;
+    margin-bottom: 20px;
+  }
+
+  .volunteer-name {
+    font-size: 16px;
+  }
+}
+
+/* ---- Small phones (≤400px) ---- */
+@media (max-width: 400px) {
+  .cards-container {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-card .number {
+    font-size: 26px;
+  }
+
+  .content-header h1 {
+    font-size: 19px;
+  }
 }

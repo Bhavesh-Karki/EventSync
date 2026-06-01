@@ -3,6 +3,7 @@ import api from '../api';
 
 function AdminDashboard({ onLogout }) {
   const [activeView, setActiveView] = useState('overview');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [events, setEvents] = useState([]);
   const [volunteers, setVolunteers] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -289,39 +290,53 @@ function AdminDashboard({ onLogout }) {
     }
   };
 
+  const closeSidebar = () => setSidebarOpen(false);
+  const handleNavClick = (view) => { setActiveView(view); closeSidebar(); };
+
   return (
-    <div className="dashboard">
+    <div className={`dashboard${sidebarOpen ? ' sidebar-open' : ''}`}>
+      {/* Hamburger button — visible on mobile only, hidden when sidebar is open */}
+      <button className="hamburger-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+        <i className="fas fa-bars"></i>
+      </button>
+
+      {/* Backdrop overlay for mobile sidebar */}
+      <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={closeSidebar}></div>
+
       {/* Sidebar */}
-      <div className="sidebar">
+      <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <button className="sidebar-close-btn" onClick={closeSidebar} aria-label="Close menu">
+          <i className="fas fa-times"></i>
+        </button>
         <h2><i className="fas fa-hands-helping"></i> EventSync Admin</h2>
         <ul className="nav-menu">
           <li
             className={`nav-item ${activeView === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveView('overview')}
+            onClick={() => handleNavClick('overview')}
           >
             <i className="fas fa-th-large"></i> Overview
           </li>
           <li
             className={`nav-item ${activeView === 'events' ? 'active' : ''}`}
-            onClick={() => setActiveView('events')}
+            onClick={() => handleNavClick('events')}
           >
             <i className="fas fa-calendar-alt"></i> Manage Events
           </li>
           <li
             className={`nav-item ${activeView === 'volunteers' ? 'active' : ''}`}
-            onClick={() => setActiveView('volunteers')}
+            onClick={() => handleNavClick('volunteers')}
           >
             <i className="fas fa-user-friends"></i> Manage Volunteers
           </li>
           <li
             className={`nav-item ${activeView === 'assignments' ? 'active' : ''}`}
-            onClick={() => setActiveView('assignments')}
+            onClick={() => handleNavClick('assignments')}
           >
             <i className="fas fa-tasks"></i> Assignments
           </li>
           <li
             className={`nav-item ${activeView === 'reports' ? 'active' : ''}`}
-            onClick={() => setActiveView('reports')}
+            onClick={() => handleNavClick('reports')}
           >
             <i className="fas fa-file-contract"></i> Reports
           </li>

@@ -6,6 +6,7 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const showMessage = useCallback((msg, type = 'success') => {
     setMessage({ text: msg, type });
@@ -96,9 +97,20 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
   const volunteerSkills = Array.isArray(volunteer.skills) ? volunteer.skills : [];
 
   return (
-    <div className="dashboard">
+    <div className={`dashboard${sidebarOpen ? ' sidebar-open' : ''}`}>
+      {/* Hamburger button — visible on mobile only, hidden when sidebar is open */}
+      <button className="hamburger-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+        <i className="fas fa-bars"></i>
+      </button>
+
+      {/* Backdrop overlay for mobile sidebar */}
+      <div className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)}></div>
+
       {/* Sidebar */}
-      <div className="sidebar">
+      <div className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
+          <i className="fas fa-times"></i>
+        </button>
         <h2><i className="fas fa-handshake"></i> EventSync</h2>
         <div className="volunteer-profile-box">
           <p className="welcome-text">Welcome back,</p>
@@ -109,10 +121,6 @@ function VolunteerDashboard({ volunteerId, onLogout }) {
           <li className="nav-item active">
             <i className="fas fa-clipboard-list"></i> My Assignments
         </li>
-{/*            <li className="nav-item">
-            <i className="fas fa-user"></i> My Profile
-          </li> */}
-
         </ul>
         <button className="logout-button" onClick={onLogout}>
           <i className="fas fa-sign-out-alt"></i> Logout

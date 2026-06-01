@@ -1,12 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../api';
+import './Login.css';
 
 function Login({ onLogin }) {
   const [volunteers, setVolunteers] = useState([]);
   const [selectedVolunteer, setSelectedVolunteer] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     fetchVolunteers();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const fetchVolunteers = async () => {
@@ -23,6 +37,11 @@ function Login({ onLogin }) {
     }
   };
 
+  const handleSelect = (id) => {
+    setSelectedVolunteer(id);
+    setDropdownOpen(false);
+  };
+
   const handleAdminLogin = () => {
     onLogin('admin', null);
   };
@@ -30,36 +49,55 @@ function Login({ onLogin }) {
   const handleVolunteerLogin = () => {
     if (selectedVolunteer) {
       onLogin('volunteer', selectedVolunteer);
-    } else {
-      alert('Please select a volunteer');
     }
   };
+
+  const selectedName = volunteers.find(v => {
+    const id = v.id || v._id;
+    return String(id) === String(selectedVolunteer);
+  })?.name;
 
   return (
     <div className="login-container">
       <div className="login-box">
         <h2><i className="fas fa-hands-helping"></i> EventSync</h2>
-        <p className="login-subtitle">
-          Select your role to continue
-        </p>
+        <p className="login-subtitle">Select your role to continue</p>
 
-        <div className="form-group">
-          <label><i className="fas fa-user-circle"></i> Volunteer Profile</label>
-          <select
-            value={selectedVolunteer}
-            onChange={(e) => setSelectedVolunteer(e.target.value)}
+        {/* Custom dropdown — stays inside the card, no native popup overflow */}
+        <label className="login-label">
+          <i className="fas fa-user-circle"></i> Volunteer Profile
+        </label>
+        <div className="custom-select-wrapper" ref={dropdownRef}>
+          <div
+            className={`custom-select-trigger ${dropdownOpen ? 'open' : ''}`}
+            onClick={() => setDropdownOpen(!dropdownOpen)}
           >
-            <option value="">Select your account</option>
-            {(volunteers || []).map(volunteer => {
-              const id = volunteer.id || volunteer._id;
-              if (!id) return null;
-              return (
-                <option key={id} value={String(id)}>
-                  {volunteer.name}
-                </option>
-              );
-            })}
-          </select>
+            <span className={selectedName ? '' : 'placeholder'}>
+              {selectedName || 'Select your account'}
+            </span>
+            <i className="fas fa-chevron-down chevron"></i>
+          </div>
+
+          {dropdownOpen && (
+            <div className="custom-select-options">
+              <div className="custom-select-option disabled">
+                Select your account
+              </div>
+              {(volunteers || []).map(volunteer => {
+                const id = volunteer.id || volunteer._id;
+                if (!id) return null;
+                return (
+                  <div
+                    key={id}
+                    className={`custom-select-option ${String(id) === String(selectedVolunteer) ? 'selected' : ''}`}
+                    onClick={() => handleSelect(String(id))}
+                  >
+                    {volunteer.name}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="role-buttons">

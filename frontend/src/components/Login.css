@@ -1,0 +1,251 @@
+/*
+ * ============================================================
+ *  Login.css — All styles scoped to the Login page only
+ *  Imports design tokens from theme.css (via App.css @import).
+ *  No styles here affect dashboard or other pages.
+ * ============================================================
+ */
+
+/* ── Container ───────────────────────────────────────────── */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary) 0%,
+    var(--accent-secondary) 100%
+  );
+}
+
+/* ── Card box ────────────────────────────────────────────── */
+.login-box {
+  background: var(--bg-primary);
+  padding: 40px 36px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  position: relative;
+}
+
+.login-box h2 {
+  margin-bottom: 8px;
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 22px;
+}
+
+.login-subtitle {
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  font-size: 14px;
+}
+
+/* ── Label ───────────────────────────────────────────────── */
+.login-label {
+  display: block;
+  text-align: center;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+/* ── Custom dropdown ─────────────────────────────────────── */
+/*
+ * We use a fully custom dropdown (div-based) so the options
+ * list renders INSIDE the page flow and never overflows the
+ * card on mobile. The native <select> popup can't be styled
+ * or constrained by CSS alone.
+ */
+.custom-select-wrapper {
+  position: relative;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+/* The visible "trigger" row */
+.custom-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--white);
+  border: 2px solid var(--bg-secondary);
+  border-radius: 50px;           /* soft pill shape */
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text-primary);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  user-select: none;
+  gap: 10px;
+}
+
+.custom-select-trigger:hover,
+.custom-select-trigger.open {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(119, 136, 115, 0.15);
+}
+
+/* Placeholder text (muted when nothing selected) */
+.custom-select-trigger .placeholder {
+  color: var(--text-secondary);
+}
+
+/* Chevron arrow */
+.custom-select-trigger .chevron {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.custom-select-trigger.open .chevron {
+  transform: rotate(180deg);
+}
+
+/* Options list — renders inside the card, scrollable */
+.custom-select-options {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border: 2px solid var(--accent-primary);
+  border-radius: 16px;
+  overflow: hidden;
+  overflow-y: auto;
+  max-height: 180px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  animation: dropIn 0.18s ease-out;
+}
+
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.custom-select-option {
+  padding: 12px 18px;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.custom-select-option:hover {
+  background: var(--bg-primary);
+}
+
+.custom-select-option.selected {
+  background: var(--bg-secondary);
+  font-weight: 600;
+}
+
+.custom-select-option.disabled {
+  color: var(--text-secondary);
+  font-style: italic;
+  cursor: default;
+}
+
+.custom-select-option.disabled:hover {
+  background: transparent;
+}
+
+/* ── Action buttons ──────────────────────────────────────── */
+.role-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.role-button {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 50px;           /* matches the select pill shape */
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.role-button.volunteer {
+  background-color: var(--accent-secondary);
+  color: var(--text-primary);
+}
+
+.role-button.volunteer:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.role-button.admin {
+  background-color: var(--accent-primary);
+  color: var(--white);
+}
+
+.role-button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+}
+
+/* ── Divider ─────────────────────────────────────────────── */
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 2px 0;
+  color: var(--text-secondary);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--bg-secondary);
+}
+
+.divider span {
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ── Footer note ─────────────────────────────────────────── */
+.login-footer {
+  margin-top: 24px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+/* ── Mobile tweaks (≤480px) ──────────────────────────────── */
+@media (max-width: 480px) {
+  .login-box {
+    padding: 32px 22px;
+  }
+
+  .login-box h2 {
+    font-size: 20px;
+  }
+
+  .custom-select-options {
+    max-height: 150px;  /* shorter list so it never clips the screen */
+  }
+}

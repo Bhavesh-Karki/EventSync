@@ -1,0 +1,105 @@
+/*
+ * ============================================================
+ *  EventSync — Centralized Theme
+ *  Single source of truth for colors, typography, spacing,
+ *  and component tokens used across every page / component.
+ *  Import this file ONCE (via index.js or App.css @import).
+ *  Never hard-code these values anywhere else.
+ * ============================================================
+ */
+
+/* ── 1. Brand Color Palette ─────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-primary:       #F1F3E0;   /* page background */
+  --bg-secondary:     #D2DCB6;   /* borders, subtle fills */
+
+  /* Brand accents */
+  --accent-primary:   #778873;   /* sidebar, primary buttons */
+  --accent-secondary: #A1BC98;   /* secondary buttons, highlights */
+
+  /* Text */
+  --text-primary:     #3A4638;   /* headings, body */
+  --text-secondary:   #5C6E59;   /* subtitles, labels */
+
+  /* Utility */
+  --white:            #ffffff;
+  --danger:           #e74c3c;
+  --warning:          #f39c12;
+  --success:          #2ecc71;
+
+  /* ── 2. Elevation / Shadow ── */
+  --shadow-sm:        0 2px 8px  rgba(0, 0, 0, 0.06);
+  --shadow:           0 4px 15px rgba(0, 0, 0, 0.08);  /* cards, panels */
+  --shadow-lg:        0 20px 40px rgba(0, 0, 0, 0.18); /* modals, login */
+
+  /* ── 3. Typography ── */
+  --font-family:      'Outfit', 'Segoe UI', sans-serif;
+  --font-size-xs:     11px;
+  --font-size-sm:     12px;
+  --font-size-base:   15px;
+  --font-size-md:     16px;
+  --font-size-lg:     20px;
+  --font-size-xl:     24px;
+  --font-size-2xl:    32px;
+  --font-size-hero:   42px;
+
+  /* ── 4. Border Radius ── */
+  --radius-sm:        8px;
+  --radius-md:        12px;
+  --radius-lg:        20px;
+
+  /* ── 5. Spacing Scale (use multiples of 4) ── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+
+  /* ── 6. Sidebar ── */
+  --sidebar-width:    280px;
+  --sidebar-bg:       var(--accent-primary);
+  --sidebar-color:    #ffffff;
+
+  /* ── 7. Component-specific tokens ── */
+  /* Buttons */
+  --btn-font-size:    var(--font-size-base);
+  --btn-font-weight:  600;
+  --btn-padding:      14px 28px;
+  --btn-radius:       var(--radius-md);
+
+  /* Inputs */
+  --input-padding:    12px 18px;
+  --input-radius:     var(--radius-md);
+  --input-border:     2px solid var(--bg-secondary);
+  --input-bg:         var(--bg-primary);
+  --input-font-size:  var(--font-size-base);
+  --input-focus-ring: 0 0 0 4px rgba(161, 188, 152, 0.2);
+
+  /* Cards */
+  --card-padding:     30px;
+  --card-radius:      var(--radius-lg);
+  --card-border:      1px solid var(--bg-secondary);
+  --card-bg:          var(--white);
+
+  /* Tables */
+  --table-th-size:    var(--font-size-xs);
+  --table-td-size:    var(--font-size-base);
+  --table-padding-th: 18px 20px;
+  --table-padding-td: 20px;
+
+  /* Nav items */
+  --nav-item-radius:  var(--radius-md);
+  --nav-item-padding: 15px 20px;
+  --nav-active-bg:    var(--bg-primary);
+  --nav-active-color: var(--text-primary);
+  --nav-hover-bg:     rgba(255, 255, 255, 0.1);
+
+  /* Status badge base */
+  --badge-font-size:  var(--font-size-sm);
+  --badge-padding:    6px 12px;
+  --badge-radius:     10px;
+}
