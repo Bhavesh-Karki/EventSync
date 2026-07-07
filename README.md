@@ -65,7 +65,7 @@ The app is fully responsive, working cleanly on mobile, tablet, and desktop.
 |---|---|
 | **Frontend** | React 18, React Router v6, Axios, CSS Variables |
 | **Backend** | Node.js, Express.js |
-| **Database** | Supabase (PostgreSQL) |
+| **Database** | Supabase (MongoDB) |
 | **Styling** | Custom CSS with centralized design tokens (`theme.css`) |
 | **Icons** | Font Awesome 6 |
 | **Dev Tools** | Nodemon, Concurrently |
